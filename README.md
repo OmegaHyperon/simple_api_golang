@@ -1,1 +1,1 @@
-# simple_api_golang
+Simple HTTP-API service delevoped in Go
