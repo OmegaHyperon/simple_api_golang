@@ -1,15 +1,15 @@
 package main
 
 import (
-	"conf_util"
-	"flag"
 	"fmt"
 	"io"
 	"log"
 	"math/rand"
 	"net/http"
-	"ora_conn"
 	"os"
+	"simple_api_golang/conf_util"
+	"simple_api_golang/ora_conn"
+	"simple_api_golang/route_table"
 	"strconv"
 	"sync"
 
@@ -22,6 +22,7 @@ type application struct {
 	conf     *conf_util.ConfUtil
 	errorLog *log.Logger
 	infoLog  *log.Logger
+	rotable  *route_table.RoTable
 }
 
 func (a *application) headers(req *http.Request) string {
@@ -72,7 +73,10 @@ func (a *application) test_oracle() {
 func main() {
 	appl := application{}
 
-	f_log, err := os.OpenFile("./logs/simple_api_golang.log", os.O_RDWR|os.O_CREATE, 0666)
+	appl.conf = &conf_util.ConfUtil{}
+	appl.conf.LoadIniFile()
+
+	f_log, err := os.OpenFile(appl.conf.LogFile, os.O_RDWR|os.O_CREATE, 0666)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -95,30 +99,33 @@ func main() {
 	appl.mutex = &sync.Mutex{}
 	appl.counter = 0
 
+	//
+	appl.rotable = &route_table.RoTable{}
+	(*appl.rotable).Init(appl.echoString, appl.randDigit, appl.incrementCounter, appl.randDigit)
+
 	appl.infoLog.Printf("Start of the server...")
 	// appl.errorLog.Printf("No errors at start!")
-
-	appl.conf = &conf_util.ConfUtil{}
-	appl.conf.LoadIniFile()
 
 	appl.infoLog.Printf(">>> Test of Oracle...")
 	appl.test_oracle()
 
-	// Используем методы из структуры в качестве обработчиков маршрутов.
-	mux := http.NewServeMux()
-	mux.HandleFunc("/headers", appl.headersString)
-	mux.HandleFunc("/inc", appl.incrementCounter)
-	mux.HandleFunc("/rand", appl.randDigit)
-	mux.HandleFunc("/", appl.echoString)
+	// With Mux...
+	// mux := http.NewServeMux()
+	// mux.HandleFunc("/headers", appl.headersString)
+	// mux.HandleFunc("/inc", appl.incrementCounter)
+	// mux.HandleFunc("/rand", appl.randDigit)
+	// mux.HandleFunc("/", appl.echoString)
 
-	var serv_url string = fmt.Sprintf(":%d", appl.conf.Port)
-	addr := flag.String("addr", serv_url, "Сетевой адрес веб-сервера")
-	srv := &http.Server{
-		Addr:     *addr,
-		ErrorLog: appl.errorLog,
-		Handler:  mux,
-	}
-	fmt.Println(">>> ", serv_url, appl.conf.Port)
-	errserv := srv.ListenAndServe()
+	// var serv_url string = fmt.Sprintf(":%d", appl.conf.Port)
+	// addr := flag.String("addr", serv_url, "Сетевой адрес веб-сервера")
+	// srv := &http.Server{
+	// 	Addr:     *addr,
+	// 	ErrorLog: appl.errorLog,
+	// 	Handler:  mux,
+	// }
+	// fmt.Println(">>> ", serv_url, appl.conf.Port)
+
+	router := http.HandlerFunc(appl.rotable.Serve)
+	errserv := http.ListenAndServe(fmt.Sprintf(":%d", appl.conf.Port), router)
 	appl.errorLog.Fatal(errserv)
 }

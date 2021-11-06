@@ -23,6 +23,7 @@ import (
 type ConfUtil struct {
 	ini_path string
 	Port     int
+	LogFile  string
 
 	DB_username string
 	DB_password string
@@ -31,6 +32,7 @@ type ConfUtil struct {
 
 func (p *ConfUtil) LoadIniFile() int {
 	p.ini_path = "/usr/local/etc/simple_api_golang/simple_api_golang.ini"
+	p.LogFile = "./logs/simple_api_golang.log"
 
 	fmt.Println("Path to ini-file:", p.ini_path)
 	cfg, err := ini.Load(p.ini_path)
